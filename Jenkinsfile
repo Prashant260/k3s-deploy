@@ -2,12 +2,12 @@ pipeline {
     agent any
 
     environment {
-        JFROG_REGISTRY = 'YOUR_COMPANY.jfrog.io'
+        JFROG_REGISTRY = 'trialf8lfmw.jfrog.io'
         JFROG_REPO = 'docker-local'
         IMAGE_NAME = 'github-actions-runner'
         IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKERFILE_PATH = 'runner/Dockerfile'
-        BUILD_CONTEXT = 'runner'
+        DOCKERFILE_PATH = 'Dockerfile'
+        BUILD_CONTEXT = '.'
         FULL_IMAGE = "${JFROG_REGISTRY}/${JFROG_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
         LATEST_IMAGE = "${JFROG_REGISTRY}/${JFROG_REPO}/${IMAGE_NAME}:latest"
     }
@@ -22,8 +22,14 @@ pipeline {
         stage('Verify Docker Files') {
             steps {
                 sh '''
+                    pwd
+                    ls -la
+
+                    command -v docker
+                    docker --version
+
                     test -f "$DOCKERFILE_PATH"
-                    test -f "$BUILD_CONTEXT/start.sh"
+                    test -f start.sh
                 '''
             }
         }
@@ -43,7 +49,7 @@ pipeline {
         stage('Login To JFrog') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'jfrog-docker-creds',
+                    credentialsId: 'jfrog-cred',
                     usernameVariable: 'JFROG_USER',
                     passwordVariable: 'JFROG_PASS'
                 )]) {
@@ -68,7 +74,7 @@ pipeline {
 
     post {
         always {
-            sh 'docker logout "$JFROG_REGISTRY" || true'
+            sh 'command -v docker >/dev/null 2>&1 && docker logout "$JFROG_REGISTRY" || true'
         }
     }
 }

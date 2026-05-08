@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         JFROG_REGISTRY = 'trialf8lfmw.jfrog.io'
-        JFROG_REPO = 'k3s-deploy'
+        JFROG_REPO = 'docker-local-docker'
         IMAGE_NAME = 'github-actions-runner'
         IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKERFILE_PATH = 'Dockerfile'

@@ -88,10 +88,18 @@ pipeline {
                     )
                 ]) {
                     sh '''
+                        export KUBECONFIG="$KUBECONFIG_FILE"
+
                         command -v kubectl
                         kubectl version --client
 
-                        export KUBECONFIG="$KUBECONFIG_FILE"
+                        K8S_SERVER="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
+                        echo "Using k3s API server: $K8S_SERVER"
+
+                        if [ -z "$K8S_SERVER" ] || [ "$K8S_SERVER" = "https://:6443" ]; then
+                          echo "Invalid k3s kubeconfig. Recreate the k3s-kubeconfig Jenkins credential with a valid server URL."
+                          exit 1
+                        fi
 
                         kubectl create namespace "$K8S_NAMESPACE" \
                           --dry-run=client \

@@ -8,6 +8,10 @@ pipeline {
         IMAGE_TAG = "${BUILD_NUMBER}"
         DOCKERFILE_PATH = 'Dockerfile'
         BUILD_CONTEXT = '.'
+        K8S_MANIFEST = 'k8s/deployment.yaml'
+        K8S_NAMESPACE = 'github-runner'
+        K8S_DEPLOYMENT = 'github-actions-runner'
+        K8S_CONTAINER = 'github-actions-runner'
         FULL_IMAGE = "${JFROG_REGISTRY}/${JFROG_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
         LATEST_IMAGE = "${JFROG_REGISTRY}/${JFROG_REPO}/${IMAGE_NAME}:latest"
     }
@@ -30,6 +34,7 @@ pipeline {
 
                     test -f "$DOCKERFILE_PATH"
                     test -f start.sh
+                    test -f "$K8S_MANIFEST"
                 '''
             }
         }
@@ -68,6 +73,53 @@ pipeline {
                     docker push "$FULL_IMAGE"
                     docker push "$LATEST_IMAGE"
                 '''
+            }
+        }
+
+        stage('Deploy To k3s') {
+            steps {
+                withCredentials([
+                    file(credentialsId: 'k3s-kubeconfig', variable: 'KUBECONFIG_FILE'),
+                    string(credentialsId: 'github-runner-token', variable: 'GITHUB_RUNNER_TOKEN'),
+                    usernamePassword(
+                        credentialsId: 'jfrog-cred',
+                        usernameVariable: 'JFROG_USER',
+                        passwordVariable: 'JFROG_PASS'
+                    )
+                ]) {
+                    sh '''
+                        command -v kubectl
+                        kubectl version --client
+
+                        export KUBECONFIG="$KUBECONFIG_FILE"
+
+                        kubectl create namespace "$K8S_NAMESPACE" \
+                          --dry-run=client \
+                          -o yaml | kubectl apply -f -
+
+                        kubectl -n "$K8S_NAMESPACE" create secret generic github-runner-secret \
+                          --from-literal=RUNNER_TOKEN="$GITHUB_RUNNER_TOKEN" \
+                          --dry-run=client \
+                          -o yaml | kubectl apply -f -
+
+                        kubectl -n "$K8S_NAMESPACE" create secret docker-registry jfrog-registry-secret \
+                          --docker-server="$JFROG_REGISTRY" \
+                          --docker-username="$JFROG_USER" \
+                          --docker-password="$JFROG_PASS" \
+                          --dry-run=client \
+                          -o yaml | kubectl apply -f -
+
+                        kubectl apply -f "$K8S_MANIFEST"
+
+                        kubectl -n "$K8S_NAMESPACE" set image \
+                          "deployment/$K8S_DEPLOYMENT" \
+                          "$K8S_CONTAINER=$FULL_IMAGE"
+
+                        kubectl -n "$K8S_NAMESPACE" rollout status \
+                          "deployment/$K8S_DEPLOYMENT" \
+                          --timeout=180s
+                    '''
+                }
             }
         }
     }

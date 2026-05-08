@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-actions-runner
+  namespace: github-runner
+  labels:
+    app: github-actions-runner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-actions-runner
+  template:
+    metadata:
+      labels:
+        app: github-actions-runner
+    spec:
+      imagePullSecrets:
+        - name: jfrog-registry-secret
+      containers:
+        - name: github-actions-runner
+          image: github-actions-runner:latest
+          imagePullPolicy: Always
+          env:
+            - name: GITHUB_URL
+              value: "https://github.com/Prashant260/k3s-deploy"
+            - name: RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: github-runner-secret
+                  key: RUNNER_TOKEN

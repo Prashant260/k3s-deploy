@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ARG RUNNER_VERSION=2.333.1
+ARG RUNNER_VERSION=2.334.0
 
 RUN apt-get update && apt-get install -y \
     curl \
@@ -21,7 +21,8 @@ WORKDIR /home/runner
 RUN curl -fsSL -o actions-runner-linux-x64.tar.gz \
     "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz" \
     && tar xzf actions-runner-linux-x64.tar.gz \
-    && rm actions-runner-linux-x64.tar.gz
+    && rm actions-runner-linux-x64.tar.gz \
+    && ./bin/installdependencies.sh
 
 COPY start.sh /home/runner/start.sh
 
